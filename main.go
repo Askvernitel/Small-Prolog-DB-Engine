@@ -1,9 +1,17 @@
 package main
 
-import "weird/db/engine/cli"
+import (
+	"fmt"
+	"weird/db/engine/gui"
+)
 
 func main() {
-	cli := cli.NewCLI("http://localhost:8081")
-	cli.Run()
+	fmt.Println("He")
+	g := gui.New()
 
+	fmt.Println("He")
+	g.Start()
+	fmt.Println("He")
+	//	newCli := cli.NewCLI("http://localhost:8081")
+	//	newCli.Run()
 }

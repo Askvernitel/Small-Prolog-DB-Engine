@@ -18,7 +18,7 @@ type CLI struct {
 
 func NewCLI(serverURL string) *CLI {
 	if serverURL == "" {
-		serverURL = "http://localhost:8080"
+		serverURL = "http://localhost:8081"
 	}
 
 	dbClient := client.NewClient(serverURL)
@@ -116,25 +116,8 @@ func (c *CLI) processStatement(input string) {
 			fmt.Printf("❌ Execution error: %v\n", err)
 			continue
 		}
+		fmt.Println(resp.Message)
 
-		// Display results
-		if resp.Success {
-			fmt.Printf("✅ Success")
-			if resp.Message != "" {
-				fmt.Printf(": %s", resp.Message)
-			}
-			fmt.Println()
-
-			if resp.Data != nil {
-				fmt.Printf("📊 Result: %v\n", resp.Data)
-			}
-		} else {
-			fmt.Printf("❌ Failed")
-			if resp.Error != "" {
-				fmt.Printf(": %s", resp.Error)
-			}
-			fmt.Println()
-		}
 	}
 }
 
@@ -160,15 +143,4 @@ func (c *CLI) printHelp() {
 	fmt.Println("  DELETE FROM users WHERE name = 'John'")
 	fmt.Println("  DELETE FROM products WHERE id = 1")
 	fmt.Println()
-}
-
-func main() {
-	// Get server URL from environment or use default
-	serverURL := os.Getenv("WEIRDDB_URL")
-	if serverURL == "" {
-		serverURL = "http://localhost:8080"
-	}
-
-	cli := NewCLI(serverURL)
-	cli.Run()
 }

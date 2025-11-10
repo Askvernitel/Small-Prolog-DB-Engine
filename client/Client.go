@@ -45,11 +45,20 @@ type DeleteRequest struct {
 	Where map[string]interface{} `json:"where,omitempty"`
 }
 
+// Prolog DB Response format
 type Response struct {
-	Success bool        `json:"success"`
-	Message string      `json:"message,omitempty"`
-	Data    interface{} `json:"data,omitempty"`
-	Error   string      `json:"error,omitempty"`
+	Status  string   `json:"status"`
+	Message string   `json:"message,omitempty"`
+	Table   string   `json:"table,omitempty"`
+	Columns []string `json:"columns,omitempty"`
+	Rows    []Row    `json:"rows,omitempty"`
+	ID      int      `json:"id,omitempty"`
+	Count   int      `json:"count,omitempty"`
+}
+
+type Row struct {
+	ID   int           `json:"id"`
+	Data []interface{} `json:"data"`
 }
 
 func NewClient(baseURL string) *Client {
@@ -66,11 +75,12 @@ func NewClient(baseURL string) *Client {
 }
 
 func (c *Client) sendRequest(payload interface{}) (*Response, error) {
+	fmt.Println(payload)
 	jsonData, err := json.Marshal(payload)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal request: %w", err)
 	}
-
+	fmt.Println(string(jsonData))
 	req, err := http.NewRequest("POST", c.baseURL+"/query", bytes.NewBuffer(jsonData))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
@@ -88,14 +98,14 @@ func (c *Client) sendRequest(payload interface{}) (*Response, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response: %w", err)
 	}
-
+	fmt.Println(string(body))
 	var response Response
 	if err := json.Unmarshal(body, &response); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
 	}
-	fmt.Println(response)
-	if !response.Success {
-		return &response, fmt.Errorf("query failed: %s", response.Error)
+
+	if response.Status != "success" {
+		return &response, fmt.Errorf("query failed: %s", response.Message)
 	}
 
 	return &response, nil
@@ -111,6 +121,7 @@ func (c *Client) CreateTable(table string, columns []string) (*Response, error) 
 }
 
 func (c *Client) Insert(table string, values []interface{}) (*Response, error) {
+
 	req := InsertRequest{
 		Type:   "insert",
 		Table:  table,
@@ -155,25 +166,6 @@ func (c *Client) DeleteAll(table string) (*Response, error) {
 	return c.Delete(table, nil)
 }
 
-func (c *Client) Ping() error {
-	req, err := http.NewRequest("GET", c.baseURL+"/health", nil)
-	if err != nil {
-		return fmt.Errorf("failed to create ping request: %w", err)
-	}
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return fmt.Errorf("server unreachable: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("server returned status: %d", resp.StatusCode)
-	}
-
-	return nil
-}
-
 func (c *Client) SetTimeout(timeout time.Duration) {
 	c.httpClient.Timeout = timeout
 }
@@ -181,4 +173,41 @@ func (c *Client) SetTimeout(timeout time.Duration) {
 func (c *Client) Close() error {
 	c.httpClient.CloseIdleConnections()
 	return nil
+}
+
+// Helper method to get row data as a map
+func (r *Row) AsMap(columns []string) map[string]interface{} {
+	result := make(map[string]interface{})
+	for i, col := range columns {
+		if i < len(r.Data) {
+			result[col] = r.Data[i]
+		}
+	}
+	return result
+}
+
+// Helper method to print response in a readable format
+func (r *Response) Print() {
+	if r.Status == "success" {
+		fmt.Printf("✓ Success: %s\n", r.Message)
+
+		if r.ID > 0 {
+			fmt.Printf("  ID: %d\n", r.ID)
+		}
+
+		if r.Count > 0 {
+			fmt.Printf("  Count: %d\n", r.Count)
+		}
+
+		if len(r.Rows) > 0 {
+			fmt.Printf("  Table: %s\n", r.Table)
+			fmt.Printf("  Columns: %v\n", r.Columns)
+			fmt.Printf("  Rows (%d):\n", len(r.Rows))
+			for _, row := range r.Rows {
+				fmt.Printf("    ID %d: %v\n", row.ID, row.Data)
+			}
+		}
+	} else {
+		fmt.Printf("✗ Error: %s\n", r.Message)
+	}
 }

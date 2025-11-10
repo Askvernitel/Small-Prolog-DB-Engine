@@ -39,23 +39,15 @@ func (e *Executor) Execute(stmt ast.Statement) (*client.Response, error) {
 	}
 }
 
-// executeSelect executes a SELECT statement
 func (e *Executor) executeSelect(stmt *ast.SELECTQueryStatement) (*client.Response, error) {
-	// For now, we don't support WHERE clauses in SELECT from the AST
-	// This would need to be extended when WHERE support is added to the parser
 	return e.client.SelectAll(stmt.Table)
 }
 
-// executeInsert executes an INSERT statement
 func (e *Executor) executeInsert(stmt *ast.INSERTStatement) (*client.Response, error) {
-	// Convert string values to interface{} slice
 	values := make([]interface{}, len(stmt.Values))
 	for i, v := range stmt.Values {
 		values[i] = cleanValue(v)
 	}
-
-	// Note: The Prolog API expects values as an array, not column-value pairs
-	// So we ignore the Columns field and just send the values in order
 	return e.client.Insert(stmt.Table, values)
 }
 
