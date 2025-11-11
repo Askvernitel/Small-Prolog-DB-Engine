@@ -10,13 +10,6 @@ import (
 type DbExecutor interface {
 	ExecuteQuery(query string) ([]*client.Response, error)
 }
-type StubDbExecutor struct {
-}
-
-func (s *StubDbExecutor) ExecuteQuery(query string) ([]*client.Response, error) {
-
-}
-
 type Executor struct {
 	client client.DbClient
 }
