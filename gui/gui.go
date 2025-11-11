@@ -105,7 +105,9 @@ func (g *GUI) executeQuery() {
 // outputResponse converts database responses into formatted table output
 func (g *GUI) outputResponse(resps []*client.Response) fyne.CanvasObject {
 	out := container.NewVBox()
-
+	scroll := container.NewScroll(out)
+	scroll.Resize(fyne.NewSize(800, 200))
+	scroll.SetMinSize(fyne.NewSize(800, 200))
 	for idx, resp := range resps {
 		// Add response header info
 		header := widget.NewLabel(fmt.Sprintf("Result %d: %s - %s (Table: %s, Count: %d)",
@@ -149,7 +151,7 @@ func (g *GUI) outputResponse(resps []*client.Response) fyne.CanvasObject {
 		out.Add(widget.NewSeparator())
 	}
 
-	return out
+	return scroll
 }
 
 func (g *GUI) Quit() {
