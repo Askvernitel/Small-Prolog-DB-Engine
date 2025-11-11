@@ -4,20 +4,31 @@ import (
 	"fmt"
 	"weird/db/engine/ast"
 	"weird/db/engine/client"
+	"weird/db/engine/parser"
 )
 
+type DbExecutor interface {
+	ExecuteQuery(query string) ([]*client.Response, error)
+}
+type StubDbExecutor struct {
+}
+
+func (s *StubDbExecutor) ExecuteQuery(query string) ([]*client.Response, error) {
+
+}
+
 type Executor struct {
-	client *client.Client
+	client client.DbClient
 }
 
 // NewExecutor creates a new executor with a database client
-func NewExecutor(dbClient *client.Client) *Executor {
-
-	resp, err := dbClient.CreateTable("Users", []string{"name", "email", "password"})
-	if err != nil {
-		fmt.Println("ERROR OCCURED DURING CREATION" + err.Error())
-	}
-	fmt.Println(resp)
+func NewExecutor(dbClient client.DbClient) *Executor {
+	/*
+		resp, err := dbClient.CreateTable("Users", []string{"name", "email", "password"})
+		if err != nil {
+			fmt.Println("ERROR OCCURED DURING CREATION" + err.Error())
+		}
+		fmt.Println(resp)*/
 	return &Executor{
 		client: dbClient,
 	}
@@ -160,6 +171,13 @@ func (e *Executor) ExecuteMultiple(statements []ast.Statement) ([]*client.Respon
 	}
 
 	return results, nil
+}
+func (e *Executor) ExecuteQuery(q string) ([]*client.Response, error) {
+	program, err := parser.ParseString(q)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse query: %w", err)
+	}
+	return e.ExecuteProgram(program)
 }
 
 // Close closes the executor and its underlying client

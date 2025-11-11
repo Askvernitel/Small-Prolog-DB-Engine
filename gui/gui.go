@@ -1,7 +1,9 @@
 package gui
 
 import (
+	"bytes"
 	"fmt"
+	"weird/db/engine/executor"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
@@ -16,19 +18,20 @@ type GUI struct {
 	query  *widget.Entry
 	result *widget.Label
 	status *widget.Label
+
+	exec executor.DbExecutor
 }
 
-func New() *GUI {
+func New(exec executor.DbExecutor) *GUI {
 	a := app.New()
 	return &GUI{
-		app: a,
-		win: a.NewWindow("Database Query UI"),
+		app:  a,
+		win:  a.NewWindow("Database Query UI"),
+		exec: exec,
 	}
 }
 
 func (g *GUI) Start() {
-	g.win.Resize(fyne.NewSize(800, 600))
-	g.win.SetFixedSize(true)
 	g.query = widget.NewMultiLineEntry()
 	g.query.SetPlaceHolder("Enter your SQL query here...")
 	g.query.SetMinRowsVisible(5)
@@ -41,6 +44,7 @@ func (g *GUI) Start() {
 	resultScroll.SetMinSize(fyne.NewSize(600, 300))
 
 	executeBtn := widget.NewButton("Execute Query", func() {
+		fmt.Println("EXECUTING")
 		g.executeQuery()
 	})
 
@@ -72,31 +76,24 @@ func (g *GUI) Start() {
 	))
 
 	g.win.Resize(fyne.NewSize(800, 600))
+	g.win.SetFixedSize(true)
 	g.win.ShowAndRun()
 }
 
 func (g *GUI) executeQuery() {
-	query := g.query.Text
-
-	if query == "" {
-		g.status.SetText("Error: Empty query")
+	q := g.query.Text
+	resps, err := g.exec.ExecuteQuery(q)
+	if err != nil {
+		g.result.SetText(err.Error())
 		return
 	}
 
-	g.status.SetText("Executing...")
+	var out bytes.Buffer
+	for _, resp := range resps {
+		out.WriteString(resp.Message)
+	}
 
-	result := g.mockDatabaseQuery(query)
-
-	g.result.SetText(result)
-	g.status.SetText("Query executed successfully")
-}
-
-func (g *GUI) mockDatabaseQuery(query string) string {
-	return fmt.Sprintf("Query executed:\n%s\n\nMock Results:\n"+
-		"Row 1: Data A, Data B, Data C\n"+
-		"Row 2: Data D, Data E, Data F\n"+
-		"Row 3: Data G, Data H, Data I\n"+
-		"\n3 rows returned", query)
+	g.result.SetText(out.String())
 }
 
 func (g *GUI) Quit() {

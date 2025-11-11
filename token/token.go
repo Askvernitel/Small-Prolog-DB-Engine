@@ -3,7 +3,6 @@ package token
 type TokenType string
 
 const (
-	// Keywords
 	SELECT_TOKEN = "SELECT"
 	FROM_TOKEN   = "FROM"
 	INSERT_TOKEN = "INSERT"
@@ -14,12 +13,10 @@ const (
 	SET_TOKEN    = "SET"
 	WHERE_TOKEN  = "WHERE"
 
-	// Identifiers and literals
 	IDENT_TOKEN  = "IDENT"
 	STRING_TOKEN = "STRING"
 	NUMBER_TOKEN = "NUMBER"
 
-	// Symbols
 	COMMA_TOKEN     = ","
 	LPAREN_TOKEN    = "("
 	RPAREN_TOKEN    = ")"

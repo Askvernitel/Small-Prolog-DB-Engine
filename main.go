@@ -1,17 +1,21 @@
 package main
 
 import (
-	"fmt"
+	"weird/db/engine/client"
+	"weird/db/engine/executor"
 	"weird/db/engine/gui"
 )
 
-func main() {
-	fmt.Println("He")
-	g := gui.New()
+const (
+	URL = "http://localhost:8080"
+)
 
-	fmt.Println("He")
+func main() {
+	c := client.NewClient(URL)
+	e := executor.NewExecutor(c)
+	g := gui.New(e)
+
 	g.Start()
-	fmt.Println("He")
 	//	newCli := cli.NewCLI("http://localhost:8081")
 	//	newCli.Run()
 }

@@ -3,9 +3,13 @@ package parser
 import (
 	"fmt"
 	"weird/db/engine/ast"
+	"weird/db/engine/lexer"
 	"weird/db/engine/token"
 )
 
+type QueryParser interface {
+	Parse() (*ast.Program, error)
+}
 type Parser struct {
 	tokens  []token.Token
 	pos     int
@@ -377,4 +381,11 @@ func ParseSingle(tokens []token.Token) (ast.Statement, error) {
 	}
 
 	return program.Statements[0], nil
+}
+
+func ParseString(q string) (*ast.Program, error) {
+	l := lexer.Lexer{}
+	t := l.Tokenize(q)
+	p := New(t)
+	return p.Parse()
 }

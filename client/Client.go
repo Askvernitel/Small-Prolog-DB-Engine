@@ -9,6 +9,18 @@ import (
 	"time"
 )
 
+type DbClient interface {
+	CreateTable(table string, columns []string) (*Response, error)
+	Insert(table string, values []interface{}) (*Response, error)
+	Select(table string, where map[string]interface{}) (*Response, error)
+	SelectAll(table string) (*Response, error)
+	Update(table string, set map[string]interface{}, where map[string]interface{}) (*Response, error)
+	Delete(table string, where map[string]interface{}) (*Response, error)
+	DeleteAll(table string) (*Response, error)
+	SetTimeout(timeout time.Duration)
+	Close() error
+}
+
 type Client struct {
 	baseURL    string
 	httpClient *http.Client
@@ -61,7 +73,7 @@ type Row struct {
 	Data []interface{} `json:"data"`
 }
 
-func NewClient(baseURL string) *Client {
+func NewClient(baseURL string) DbClient {
 	if baseURL == "" {
 		baseURL = "http://localhost:8080"
 	}
@@ -121,7 +133,6 @@ func (c *Client) CreateTable(table string, columns []string) (*Response, error) 
 }
 
 func (c *Client) Insert(table string, values []interface{}) (*Response, error) {
-
 	req := InsertRequest{
 		Type:   "insert",
 		Table:  table,
@@ -186,7 +197,6 @@ func (r *Row) AsMap(columns []string) map[string]interface{} {
 	return result
 }
 
-// Helper method to print response in a readable format
 func (r *Response) Print() {
 	if r.Status == "success" {
 		fmt.Printf("✓ Success: %s\n", r.Message)
