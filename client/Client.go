@@ -69,8 +69,8 @@ type Response struct {
 }
 
 type Row struct {
-	ID   int           `json:"id"`
-	Data []interface{} `json:"data"`
+	ID   int      `json:"id"`
+	Data []string `json:"data"`
 }
 
 func NewClient(baseURL string) DbClient {
