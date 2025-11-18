@@ -3,6 +3,7 @@ package token
 type TokenType string
 
 const (
+	CREATE_TOKEN = "CREATE"
 	SELECT_TOKEN = "SELECT"
 	FROM_TOKEN   = "FROM"
 	INSERT_TOKEN = "INSERT"

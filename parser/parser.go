@@ -84,6 +84,8 @@ func (p *Parser) Parse() (*ast.Program, error) {
 
 func (p *Parser) parseStatement() (ast.Statement, error) {
 	switch p.current.Token {
+	case token.CREATE_TOKEN:
+		return p.parseCREATEStatement()
 	case token.SELECT_TOKEN:
 		return p.parseSELECTStatement()
 	case token.INSERT_TOKEN:
@@ -95,6 +97,44 @@ func (p *Parser) parseStatement() (ast.Statement, error) {
 	default:
 		return nil, fmt.Errorf("unexpected token: %s", p.current.Literal)
 	}
+}
+
+func (p *Parser) parseCREATEStatement() (*ast.CREATEStatement, error) {
+	if err := p.expect(token.CREATE_TOKEN); err != nil {
+		return nil, err
+	}
+
+	var tableName string
+
+	p.skipWhitespace()
+
+	if p.current.Token != token.IDENT_TOKEN {
+		return nil, fmt.Errorf("expected field name, got %s", p.current.Token)
+	}
+	tableName = p.current.Literal
+	p.advance()
+
+	if p.current.Token == token.LPAREN_TOKEN {
+		return nil, fmt.Errorf("expected (, got %s", p.current.Token)
+	}
+	p.advance()
+	cols := make([]string, 0)
+	for {
+
+		p.skipWhitespace()
+		cols = append(cols, p.current.Literal)
+		break
+	}
+
+	p.skipWhitespace()
+
+	if err := p.expect(token.RPAREN_TOKEN); err != nil {
+		return nil, err
+	}
+
+	p.skipWhitespace()
+
+	return ast.NewCREATEStatement(tableName, cols), nil
 }
 
 func (p *Parser) parseSELECTStatement() (*ast.SELECTQueryStatement, error) {

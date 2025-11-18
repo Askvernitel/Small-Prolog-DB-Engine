@@ -30,6 +30,8 @@ func NewExecutor(dbClient client.DbClient) *Executor {
 // Execute executes an AST statement and returns the response
 func (e *Executor) Execute(stmt ast.Statement) (*client.Response, error) {
 	switch s := stmt.(type) {
+	case *ast.CREATEStatement:
+		return e.executeCreate(s)
 	case *ast.SELECTQueryStatement:
 		return e.executeSelect(s)
 	case *ast.INSERTStatement:
@@ -90,6 +92,11 @@ func (e *Executor) executeDelete(stmt *ast.DELETEStatement) (*client.Response, e
 	}
 
 	return e.client.Delete(stmt.Table, where)
+}
+
+func (e *Executor) executeCreate(stmt *ast.CREATEStatement) (*client.Response, error) {
+
+	return e.client.CreateTable(stmt.Table, stmt.Columns)
 }
 
 // cleanValue removes quotes from string literals and converts to appropriate type

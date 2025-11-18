@@ -30,19 +30,18 @@ func (l *Lexer) flushBuffer() {
 	literal := l.ReadBuffer.String()
 	l.ReadBuffer.Reset()
 
-	// Determine token type based on literal
 	var tok token.Token
 	tok.Literal = literal
 
-	// Check if it's a number
 	if isNumber(literal) {
 		tok.Token = token.NUMBER_TOKEN
 		l.tokens = append(l.tokens, tok)
 		return
 	}
 
-	// Check for keywords (case-insensitive)
 	switch strings.ToUpper(literal) {
+	case "CREATE":
+		tok.Token = token.CREATE_TOKEN
 	case "SELECT":
 		tok.Token = token.SELECT_TOKEN
 	case "FROM":

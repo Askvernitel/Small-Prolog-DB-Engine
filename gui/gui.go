@@ -38,11 +38,9 @@ func (g *GUI) Start() {
 
 	g.status = widget.NewLabel("Ready")
 
-	// Create the result container
 	g.result = container.NewVBox()
 	g.result.Add(widget.NewLabel("Results will appear here..."))
 
-	// Wrap result in a scroll container
 	/*	resultScroll := container.NewScroll(g.result)
 		resultScroll.SetMinSize(fyne.NewSize(600, 300))*/
 
@@ -93,39 +91,32 @@ func (g *GUI) executeQuery() {
 		return
 	}
 
-	// Clear previous results
 	g.result.Objects = []fyne.CanvasObject{}
 
-	// Add new results
 	g.result.Add(g.outputResponse(resps))
 	g.result.Refresh()
 	g.status.SetText("Query completed")
 }
 
-// outputResponse converts database responses into formatted table output
 func (g *GUI) outputResponse(resps []*client.Response) fyne.CanvasObject {
 	out := container.NewVBox()
 	scroll := container.NewScroll(out)
 	scroll.Resize(fyne.NewSize(800, 200))
 	scroll.SetMinSize(fyne.NewSize(800, 200))
 	for idx, resp := range resps {
-		// Add response header info
 		header := widget.NewLabel(fmt.Sprintf("Result %d: %s - %s (Table: %s, Count: %d)",
 			idx+1, resp.Status, resp.Message, resp.Table, resp.Count))
 		header.TextStyle = fyne.TextStyle{Bold: true}
 		out.Add(header)
 
-		// Check if there are any rows
 		if len(resp.Rows) == 0 || len(resp.Columns) == 0 {
 			out.Add(widget.NewLabel("No data to display"))
 			out.Add(widget.NewSeparator())
 			continue
 		}
 
-		// Create a grid for the table
 		gridContainer := container.NewVBox()
 
-		// Add header row
 		headerRow := container.NewHBox()
 		for _, col := range resp.Columns {
 			headerLabel := widget.NewLabel(col)
@@ -136,7 +127,6 @@ func (g *GUI) outputResponse(resps []*client.Response) fyne.CanvasObject {
 		gridContainer.Add(headerRow)
 		gridContainer.Add(widget.NewSeparator())
 
-		// Add data rows
 		for _, row := range resp.Rows {
 			dataRow := container.NewHBox()
 			for _, cellData := range row.Data {
@@ -158,7 +148,6 @@ func (g *GUI) Quit() {
 	g.app.Quit()
 }
 
-// Helper function for min
 func min(a, b int) int {
 	if a < b {
 		return a

@@ -53,40 +53,33 @@ func (c *CLI) Run() {
 		input := scanner.Text()
 		input = strings.TrimSpace(input)
 
-		// Check for exit commands
 		if input == "exit" || input == "quit" {
 			fmt.Println("Goodbye! 👋")
 			break
 		}
 
-		// Help command
 		if input == "help" {
 			c.printHelp()
 			continue
 		}
 
-		// Skip empty input
 		if input == "" {
 			continue
 		}
 
-		// Process the SQL statement
 		c.processStatement(input)
 
 		fmt.Println()
 	}
 
-	// Check for scanner errors
 	if err := scanner.Err(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error reading input: %v\n", err)
 	}
 
-	// Cleanup
 	c.executor.Close()
 }
 
 func (c *CLI) processStatement(input string) {
-	// Tokenize input
 	tokens := c.lexer.Tokenize(input)
 
 	if len(tokens) == 0 {
@@ -107,7 +100,6 @@ func (c *CLI) processStatement(input string) {
 		return
 	}
 
-	// Execute each statement
 	for _, stmt := range program.Statements {
 		fmt.Printf("📝 Executing: %s\n", stmt.String())
 

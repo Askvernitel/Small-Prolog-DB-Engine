@@ -1,190 +1,267 @@
 :- use_module(library(http/thread_httpd)).
 :- use_module(library(http/http_dispatch)).
-:- use_module(library(http/http_parameters)).
 :- use_module(library(http/http_json)).
-:- dynamic table_schema/2.
+:- use_module(library(http/http_cors)).
+:- use_module(library(http/json)).
 :- dynamic table_data/3.
 
-db_directory('db_files/').
-server_port(8081).
-
-init_db :-
-    db_directory(Dir),
-    (exists_directory(Dir) -> true ; make_directory(Dir)).
-
+% HTTP route handlers
 :- http_handler(root(query), handle_query, []).
 
+% Start the server
 start_server :-
-    init_db,
-    server_port(Port),
+    start_server(8080).
+
+start_server(Port) :-
     http_server(http_dispatch, [port(Port)]),
-    format('Database server running on http://localhost:~w~n', [Port]),
-    format('Send POST requests to /query with JSON body~n', []).
+    format('Server started on port ~w~n', [Port]),
+    format('Data directory: ./data~n', []),
+    ensure_data_directory.
 
-stop_server :-
-    server_port(Port),
-    http_stop_server(Port, []).
+% Ensure data directory exists
+ensure_data_directory :-
+    (   exists_directory('./data')
+    ->  true
+    ;   make_directory('./data')
+    ).
 
+% Main query handler - with error handling
 handle_query(Request) :-
-    http_read_json_dict(Request, QueryDict),
-    process_query(QueryDict, Response),
+    cors_enable(Request, [methods([get,post,options])]),
+    catch(
+        (
+            http_read_json_dict(Request, Dict),
+            format(user_error, 'Received dict: ~w~n', [Dict]),
+            process_query(Dict, Response),
+            format(user_error, 'Response: ~w~n', [Response])
+        ),
+        Error,
+        (
+            format(user_error, 'Error processing query: ~w~n', [Error]),
+            format(atom(ErrorMsg), '~w', [Error]),
+            Response = _{status: "error", message: ErrorMsg}
+        )
+    ),
     reply_json_dict(Response).
 
+% Process different query types
 process_query(Dict, Response) :-
-    Type = Dict.get(type),
-    (   Type = "create_table"
-    ->  create_table_handler(Dict, Response)
-    ;   Type = "insert"
-    ->  insert_handler(Dict, Response)
-    ;   Type = "select"
-    ->  select_handler(Dict, Response)
-    ;   Type = "update"
-    ->  update_handler(Dict, Response)
-    ;   Type = "delete"
-    ->  delete_handler(Dict, Response)
-    ;   Response = _{status: "error", message: "Unknown query type"}
+    (   get_dict(type, Dict, Type),
+        get_dict(table, Dict, Table)
+    ->  atom_string(TableAtom, Table),
+        process_query_type(Type, TableAtom, Dict, Response)
+    ;   Response = _{status: "error", message: "missing type or table field"}
     ).
 
-create_table_handler(Dict, Response) :-
-    Table = Dict.get(table),
-    Columns = Dict.get(columns),
-    (   table_schema(Table, _)
-    ->  Response = _{status: "error", message: "Table already exists"}
-    ;   assert(table_schema(Table, Columns)),
-        save_schema(Table),
-        Response = _{status: "success", message: "Table created", table: Table}
+% CREATE TABLE
+process_query_type("create_table", Table, Dict, Response) :-
+    (   get_dict(columns, Dict, Columns)
+    ->  create_table(Table, Columns, Response)
+    ;   Response = _{status: "error", message: "missing columns field"}
     ).
 
-insert_handler(Dict, Response) :-
-    Table = Dict.get(table),
-    Values = Dict.get(values),
-    (   table_schema(Table, Columns)
-    ->  (   validate_values(Columns, Values)
-        ->  get_next_id(Table, Id),
-            assert(table_data(Table, Id, Values)),
-            save_table_data(Table),
-            Response = _{status: "success", message: "Record inserted", id: Id}
-        ;   Response = _{status: "error", message: "Invalid values for table schema"}
+% INSERT
+process_query_type("insert", Table, Dict, Response) :-
+    (   get_dict(values, Dict, Values)
+    ->  insert_row(Table, Values, Response)
+    ;   Response = _{status: "error", message: "missing values field"}
+    ).
+
+% SELECT
+process_query_type("select", Table, Dict, Response) :-
+    (   get_dict(where, Dict, Where)
+    ->  select_rows(Table, Where, Response)
+    ;   select_rows(Table, _{}, Response)
+    ).
+
+% UPDATE
+process_query_type("update", Table, Dict, Response) :-
+    (   get_dict(set, Dict, Set)
+    ->  (   get_dict(where, Dict, Where)
+        ->  update_rows(Table, Set, Where, Response)
+        ;   update_rows(Table, Set, _{}, Response)
         )
-    ;   Response = _{status: "error", message: "Table does not exist"}
+    ;   Response = _{status: "error", message: "missing set field"}
     ).
 
-select_handler(Dict, Response) :-
-    Table = Dict.get(table),
-    Where = Dict.get(where, _{}),
-    (   table_schema(Table, Columns)
-    ->  findall(_{id: Id, data: Data}, 
-                (table_data(Table, Id, Data), match_where(Data, Columns, Where)),
-                Results),
-        Response = _{status: "success", table: Table, columns: Columns, rows: Results}
-    ;   Response = _{status: "error", message: "Table does not exist"}
+% DELETE
+process_query_type("delete", Table, Dict, Response) :-
+    (   get_dict(where, Dict, Where)
+    ->  delete_rows(Table, Where, Response)
+    ;   delete_rows(Table, _{}, Response)
     ).
 
-update_handler(Dict, Response) :-
-    Table = Dict.get(table),
-    Set = Dict.get(set),
-    Where = Dict.get(where, _{}),
-    (   table_schema(Table, Columns)
-    ->  findall(Id, 
-                (table_data(Table, Id, Data), match_where(Data, Columns, Where)),
-                Ids),
-        length(Ids, Count),
-        update_records(Table, Ids, Set, Columns),
-        save_table_data(Table),
-        Response = _{status: "success", message: "Records updated", count: Count}
-    ;   Response = _{status: "error", message: "Table does not exist"}
+% Unknown query type
+process_query_type(Type, _Table, _Dict, Response) :-
+    format(atom(Msg), 'unknown query type: ~w', [Type]),
+    Response = _{status: "error", message: Msg}.
+
+% CREATE TABLE implementation
+create_table(Table, Columns, Response) :-
+    table_file(Table, File),
+    (   exists_file(File)
+    ->  Response = _{status: "error", message: "table already exists"}
+    ;   TableData = _{
+            name: Table,
+            columns: Columns,
+            next_id: 1,
+            rows: []
+        },
+        save_table(File, TableData),
+        Response = _{
+            status: "success",
+            message: "table created",
+            table: Table,
+            columns: Columns
+        }
     ).
 
-delete_handler(Dict, Response) :-
-    Table = Dict.get(table),
-    Where = Dict.get(where, _{}),
-    (   table_schema(Table, Columns)
-    ->  findall(Id, 
-                (table_data(Table, Id, Data), match_where(Data, Columns, Where)),
-                Ids),
-        length(Ids, Count),
-        delete_records(Table, Ids),
-        save_table_data(Table),
-        Response = _{status: "success", message: "Records deleted", count: Count}
-    ;   Response = _{status: "error", message: "Table does not exist"}
+% INSERT implementation
+insert_row(Table, Values, Response) :-
+    table_file(Table, File),
+    (   load_table(File, TableData)
+    ->  get_dict(columns, TableData, Columns),
+        get_dict(next_id, TableData, ID),
+        get_dict(rows, TableData, Rows),
+        length(Columns, ColCount),
+        length(Values, ValCount),
+        (   ColCount =:= ValCount
+        ->  create_row_data(Columns, Values, RowData),
+            NewRow = _{id: ID, data: RowData},
+            append(Rows, [NewRow], NewRows),
+            NextID is ID + 1,
+            put_dict(_{rows: NewRows, next_id: NextID}, TableData, UpdatedData),
+            save_table(File, UpdatedData),
+            Response = _{
+                status: "success",
+                message: "row inserted",
+                table: Table,
+                id: ID
+            }
+        ;   format(atom(Msg), 'expected ~w values, got ~w', [ColCount, ValCount]),
+            Response = _{status: "error", message: Msg}
+        )
+    ;   Response = _{status: "error", message: "table does not exist"}
     ).
 
-validate_values(Columns, Values) :-
-    dict_keys(Values, ValueKeys),
-    sort(ValueKeys, SortedKeys),
-    sort(Columns, SortedCols),
-    subset(SortedKeys, SortedCols).
-
-get_next_id(Table, Id) :-
-    findall(ExistingId, table_data(Table, ExistingId, _), Ids),
-    (   Ids = []
-    ->  Id = 1
-    ;   max_list(Ids, MaxId),
-        Id is MaxId + 1
+% SELECT implementation
+select_rows(Table, Where, Response) :-
+    table_file(Table, File),
+    (   load_table(File, TableData)
+    ->  get_dict(columns, TableData, Columns),
+        get_dict(rows, TableData, Rows),
+        filter_rows(Rows, Where, MatchedRows),
+        length(MatchedRows, Count),
+        Response = _{
+            status: "success",
+            table: Table,
+            columns: Columns,
+            rows: MatchedRows,
+            count: Count
+        }
+    ;   Response = _{status: "error", message: "table does not exist"}
     ).
 
-match_where(_, _, Where) :-
-    dict_keys(Where, []), !.
-match_where(Data, Columns, Where) :-
+% UPDATE implementation
+update_rows(Table, Set, Where, Response) :-
+    table_file(Table, File),
+    (   load_table(File, TableData)
+    ->  get_dict(rows, TableData, Rows),
+        update_matching_rows(Rows, Set, Where, UpdatedRows, Count),
+        put_dict(rows, TableData, UpdatedRows, UpdatedData),
+        save_table(File, UpdatedData),
+        format(atom(Msg), '~w rows updated', [Count]),
+        Response = _{
+            status: "success",
+            message: Msg,
+            table: Table,
+            count: Count
+        }
+    ;   Response = _{status: "error", message: "table does not exist"}
+    ).
+
+% DELETE implementation
+delete_rows(Table, Where, Response) :-
+    table_file(Table, File),
+    (   load_table(File, TableData)
+    ->  get_dict(rows, TableData, Rows),
+        exclude(matches_where(Where), Rows, RemainingRows),
+        length(Rows, OrigCount),
+        length(RemainingRows, RemCount),
+        Count is OrigCount - RemCount,
+        put_dict(rows, TableData, RemainingRows, UpdatedData),
+        save_table(File, UpdatedData),
+        format(atom(Msg), '~w rows deleted', [Count]),
+        Response = _{
+            status: "success",
+            message: Msg,
+            table: Table,
+            count: Count
+        }
+    ;   Response = _{status: "error", message: "table does not exist"}
+    ).
+
+% Helper predicates
+table_file(Table, File) :-
+    format(atom(File), './data/~w.json', [Table]).
+
+save_table(File, Data) :-
+    open(File, write, Stream, [encoding(utf8)]),
+    json_write_dict(Stream, Data),
+    nl(Stream),
+    close(Stream).
+
+load_table(File, Data) :-
+    exists_file(File),
+    open(File, read, Stream, [encoding(utf8)]),
+    json_read_dict(Stream, Data),
+    close(Stream).
+
+create_row_data([], [], _{}).
+create_row_data([Col|Cols], [Val|Vals], RowData) :-
+    create_row_data(Cols, Vals, RestData),
+    atom_string(ColAtom, Col),
+    put_dict(ColAtom, RestData, Val, RowData).
+
+filter_rows([], _, []).
+filter_rows([Row|Rows], Where, [Row|Filtered]) :-
+    matches_where(Where, Row),
+    !,
+    filter_rows(Rows, Where, Filtered).
+filter_rows([_|Rows], Where, Filtered) :-
+    filter_rows(Rows, Where, Filtered).
+
+matches_where(Where, Row) :-
+    get_dict(data, Row, Data),
     dict_pairs(Where, _, Pairs),
-    forall(member(Key-Value, Pairs),
-           (   nth0(Idx, Columns, Key),
-               nth0(Idx, Data, Value)
-           )).
+    all_match(Pairs, Data).
 
-update_records(_, [], _, _).
-update_records(Table, [Id|Ids], Set, Columns) :-
-    retract(table_data(Table, Id, OldData)),
-    update_data(OldData, Set, Columns, NewData),
-    assert(table_data(Table, Id, NewData)),
-    update_records(Table, Ids, Set, Columns).
+all_match([], _).
+all_match([Key-Value|Rest], Data) :-
+    get_dict(Key, Data, DataValue),
+    DataValue = Value,
+    all_match(Rest, Data).
 
-update_data(OldData, Set, Columns, NewData) :-
-    dict_pairs(Set, _, Pairs),
-    foldl(update_field(Columns), Pairs, OldData, NewData).
+update_matching_rows([], _, _, [], 0).
+update_matching_rows([Row|Rows], Set, Where, [UpdatedRow|Updated], Count) :-
+    matches_where(Where, Row),
+    !,
+    get_dict(data, Row, Data),
+    merge_dicts(Set, Data, NewData),
+    put_dict(data, Row, NewData, UpdatedRow),
+    update_matching_rows(Rows, Set, Where, Updated, RestCount),
+    Count is RestCount + 1.
+update_matching_rows([Row|Rows], Set, Where, [Row|Updated], Count) :-
+    update_matching_rows(Rows, Set, Where, Updated, Count).
 
-update_field(Columns, Key-Value, Data, UpdatedData) :-
-    nth0(Idx, Columns, Key),
-    replace_nth(Idx, Data, Value, UpdatedData).
+merge_dicts(Source, Target, Merged) :-
+    dict_pairs(Source, _, Pairs),
+    apply_updates(Pairs, Target, Merged).
 
-replace_nth(0, [_|T], X, [X|T]) :- !.
-replace_nth(N, [H|T], X, [H|R]) :-
-    N > 0,
-    N1 is N - 1,
-    replace_nth(N1, T, X, R).
-
-delete_records(_, []).
-delete_records(Table, [Id|Ids]) :-
-    retractall(table_data(Table, Id, _)),
-    delete_records(Table, Ids).
-
-save_schema(Table) :-
-    db_directory(Dir),
-    atom_concat(Dir, Table, BasePath),
-    atom_concat(BasePath, '_schema.pl', FilePath),
-    table_schema(Table, Columns),
-    open(FilePath, write, Stream),
-    format(Stream, ':- dynamic table_schema/2.~n', []),
-    format(Stream, 'table_schema(~q, ~q).~n', [Table, Columns]),
-    close(Stream).
-
-save_table_data(Table) :-
-    db_directory(Dir),
-    atom_concat(Dir, Table, BasePath),
-    atom_concat(BasePath, '_data.pl', FilePath),
-    open(FilePath, write, Stream),
-    format(Stream, ':- dynamic table_data/3.~n', []),
-    forall(table_data(Table, Id, Data),
-           format(Stream, 'table_data(~q, ~w, ~q).~n', [Table, Id, Data])),
-    close(Stream).
-
-load_all_tables :-
-    db_directory(Dir),
-    atom_concat(Dir, '*.pl', Pattern),
-    expand_file_name(Pattern, Files),
-    forall(member(File, Files), consult(File)).
-
-:- initialization(init_db).
+apply_updates([], Dict, Dict).
+apply_updates([Key-Value|Rest], Dict, Result) :-
+    put_dict(Key, Dict, Value, Updated),
+    apply_updates(Rest, Updated, Result).
 
 % Example usage (run these in Prolog console):
 % ?- start_server.

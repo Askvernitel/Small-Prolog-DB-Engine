@@ -1,8 +1,9 @@
 package main
 
 import (
+	"weird/db/engine/client"
+	"weird/db/engine/executor"
 	"weird/db/engine/gui"
-	"weird/db/engine/stub"
 )
 
 const (
@@ -10,9 +11,9 @@ const (
 )
 
 func main() {
-	//c := client.NewClient(URL)
-	//e := executor.NewExecutor(c)
-	es := &stub.StubDbExecutor{}
+	c := client.NewClient(URL)
+	es := executor.NewExecutor(c)
+	//es := &stub.StubDbExecutor{}
 	g := gui.New(es)
 
 	g.Start()

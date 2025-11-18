@@ -1,6 +1,8 @@
 package ast
 
-import "strings"
+import (
+	"strings"
+)
 
 // Statement is the base interface for all AST statements
 type Statement interface {
@@ -149,6 +151,31 @@ func NewDELETEStatement(table string, whereCol string, whereVal string) *DELETES
 		Table:       table,
 		WhereColumn: whereCol,
 		WhereValue:  whereVal,
+	}
+}
+
+type CREATEStatement struct {
+	Table   string
+	Columns []string
+}
+
+func (d *CREATEStatement) Statement() {}
+
+func (d *CREATEStatement) DMLStatement() {}
+
+// String returns a string representation of the DELETE statement
+func (d *CREATEStatement) String() string {
+	result := "CREATE" + d.Table
+	for _, col := range d.Columns {
+		result += " " + col
+	}
+	return result
+}
+
+func NewCREATEStatement(table string, columns []string) *CREATEStatement {
+	return &CREATEStatement{
+		Table:   table,
+		Columns: columns,
 	}
 }
 
