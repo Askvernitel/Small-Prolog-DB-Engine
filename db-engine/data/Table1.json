@@ -1,0 +1,11 @@
+{
+  "columns": ["name" ],
+  "name":"Table1",
+  "next_id":5,
+  "rows": [
+    {"data": {"name":"COOL"}, "id":1},
+    {"data": {"name":"COOL"}, "id":2},
+    {"data": {"name":"COOL"}, "id":3},
+    {"data": {"name":"HELLO"}, "id":4}
+  ]
+}

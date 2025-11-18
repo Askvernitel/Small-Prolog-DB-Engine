@@ -114,7 +114,7 @@ func (p *Parser) parseCREATEStatement() (*ast.CREATEStatement, error) {
 	tableName = p.current.Literal
 	p.advance()
 
-	if p.current.Token == token.LPAREN_TOKEN {
+	if p.current.Token != token.LPAREN_TOKEN {
 		return nil, fmt.Errorf("expected (, got %s", p.current.Token)
 	}
 	p.advance()
@@ -122,8 +122,16 @@ func (p *Parser) parseCREATEStatement() (*ast.CREATEStatement, error) {
 	for {
 
 		p.skipWhitespace()
+		if p.current.Token != token.IDENT_TOKEN {
+			break
+		}
 		cols = append(cols, p.current.Literal)
-		break
+		p.advance()
+		if p.current.Token == token.COMMA_TOKEN {
+			p.advance()
+			break
+		}
+
 	}
 
 	p.skipWhitespace()

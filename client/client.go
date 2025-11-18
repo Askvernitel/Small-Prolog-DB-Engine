@@ -69,8 +69,8 @@ type Response struct {
 }
 
 type Row struct {
-	ID   int      `json:"id"`
-	Data []string `json:"data"`
+	ID   int            `json:"id"`
+	Data map[string]any `json:"data"`
 }
 
 func NewClient(baseURL string) DbClient {
@@ -115,14 +115,12 @@ func (c *Client) sendRequest(payload interface{}) (*Response, error) {
 	if err := json.Unmarshal(body, &response); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
 	}
-
+	fmt.Println(response.Rows)
 	if response.Status != "success" {
 		return &response, fmt.Errorf("query failed: %s", response.Message)
 	}
-
 	return &response, nil
 }
-
 func (c *Client) CreateTable(table string, columns []string) (*Response, error) {
 	req := CreateTableRequest{
 		Type:    "create_table",
@@ -189,9 +187,9 @@ func (c *Client) Close() error {
 // Helper method to get row data as a map
 func (r *Row) AsMap(columns []string) map[string]interface{} {
 	result := make(map[string]interface{})
-	for i, col := range columns {
+	for i, _ := range columns {
 		if i < len(r.Data) {
-			result[col] = r.Data[i]
+			//result[col] = r.Data[i]
 		}
 	}
 	return result

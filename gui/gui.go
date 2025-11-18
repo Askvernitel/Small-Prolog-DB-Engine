@@ -130,7 +130,8 @@ func (g *GUI) outputResponse(resps []*client.Response) fyne.CanvasObject {
 		for _, row := range resp.Rows {
 			dataRow := container.NewHBox()
 			for _, cellData := range row.Data {
-				cellLabel := widget.NewLabel(cellData)
+				strVal := fmt.Sprintf("%v", cellData)
+				cellLabel := widget.NewLabel(strVal)
 				cellLabel.Resize(fyne.NewSize(150, 35))
 				dataRow.Add(cellLabel)
 			}
