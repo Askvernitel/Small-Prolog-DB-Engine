@@ -14,7 +14,6 @@ type Executor struct {
 	client client.DbClient
 }
 
-// NewExecutor creates a new executor with a database client
 func NewExecutor(dbClient client.DbClient) *Executor {
 	/*
 		resp, err := dbClient.CreateTable("Users", []string{"name", "email", "password"})
@@ -27,7 +26,6 @@ func NewExecutor(dbClient client.DbClient) *Executor {
 	}
 }
 
-// Execute executes an AST statement and returns the response
 func (e *Executor) Execute(stmt ast.Statement) (*client.Response, error) {
 	switch s := stmt.(type) {
 	case *ast.CREATEStatement:
@@ -57,7 +55,6 @@ func (e *Executor) executeInsert(stmt *ast.INSERTStatement) (*client.Response, e
 	return e.client.Insert(stmt.Table, values)
 }
 
-// executeUpdate executes an UPDATE statement
 func (e *Executor) executeUpdate(stmt *ast.UPDATEStatement) (*client.Response, error) {
 	// Convert assignments to map[string]interface{}
 	set := make(map[string]interface{})
@@ -76,7 +73,6 @@ func (e *Executor) executeUpdate(stmt *ast.UPDATEStatement) (*client.Response, e
 	return e.client.Update(stmt.Table, set, where)
 }
 
-// executeDelete executes a DELETE statement
 func (e *Executor) executeDelete(stmt *ast.DELETEStatement) (*client.Response, error) {
 	// Build WHERE clause if present
 	var where map[string]interface{}
@@ -99,7 +95,6 @@ func (e *Executor) executeCreate(stmt *ast.CREATEStatement) (*client.Response, e
 	return e.client.CreateTable(stmt.Table, stmt.Columns)
 }
 
-// cleanValue removes quotes from string literals and converts to appropriate type
 func cleanValue(value string) interface{} {
 	// Remove surrounding quotes if present
 	if len(value) >= 2 {
@@ -118,7 +113,6 @@ func cleanValue(value string) interface{} {
 	return value
 }
 
-// isNumeric checks if a string represents a numeric value
 func isNumeric(s string) bool {
 	if len(s) == 0 {
 		return false
@@ -143,7 +137,6 @@ func isNumeric(s string) bool {
 	return true
 }
 
-// ExecuteProgram executes all statements in a program
 func (e *Executor) ExecuteProgram(program *ast.Program) ([]*client.Response, error) {
 	results := make([]*client.Response, 0, len(program.Statements))
 
@@ -158,7 +151,6 @@ func (e *Executor) ExecuteProgram(program *ast.Program) ([]*client.Response, err
 	return results, nil
 }
 
-// ExecuteMultiple executes multiple statements and returns all results
 func (e *Executor) ExecuteMultiple(statements []ast.Statement) ([]*client.Response, error) {
 	results := make([]*client.Response, 0, len(statements))
 
@@ -180,7 +172,6 @@ func (e *Executor) ExecuteQuery(q string) ([]*client.Response, error) {
 	return e.ExecuteProgram(program)
 }
 
-// Close closes the executor and its underlying client
 func (e *Executor) Close() error {
 	return e.client.Close()
 }

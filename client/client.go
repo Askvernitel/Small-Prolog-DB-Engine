@@ -57,7 +57,6 @@ type DeleteRequest struct {
 	Where map[string]interface{} `json:"where,omitempty"`
 }
 
-// Prolog DB Response format
 type Response struct {
 	Status  string   `json:"status"`
 	Message string   `json:"message,omitempty"`
@@ -184,7 +183,6 @@ func (c *Client) Close() error {
 	return nil
 }
 
-// Helper method to get row data as a map
 func (r *Row) AsMap(columns []string) map[string]interface{} {
 	result := make(map[string]interface{})
 	for i, _ := range columns {

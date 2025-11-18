@@ -385,7 +385,6 @@ func (p *Parser) parseDELETEStatement() (*ast.DELETEStatement, error) {
 	p.advance()
 	p.skipWhitespace()
 
-	// Optional WHERE clause
 	whereCol := ""
 	whereVal := ""
 	if p.current.Token == token.WHERE_TOKEN {

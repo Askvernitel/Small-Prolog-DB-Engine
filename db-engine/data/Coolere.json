@@ -1,6 +1,1 @@
-{
-  "columns": ["Ok", "Good" ],
-  "name":"Coolere",
-  "next_id":2,
-  "rows": [ {"data": {"Good":"Good", "Ok":"32"}, "id":1} ]
-}
+{"columns": ["Ok", "Good" ], "name":"Coolere", "next_id":2, "rows": []}

@@ -87,7 +87,6 @@ func (c *CLI) processStatement(input string) {
 		return
 	}
 
-	// Parse tokens
 	p := parser.New(tokens)
 	program, err := p.Parse()
 	if err != nil {
